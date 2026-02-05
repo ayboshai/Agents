@@ -1,55 +1,86 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { leadFormContent } from '../data/content';
+import { leadSchema, type LeadPayload } from '../lib/lead-schema';
 
-interface LeadFormPayload {
-  name: string;
-  phone: string;
-  message: string;
-}
+type FieldErrors = Partial<Record<keyof LeadPayload, string>>;
 
-interface LeadFormProps {
-  onSubmit: (payload: LeadFormPayload) => Promise<void> | void;
-}
-
-export default function LeadForm({ onSubmit }: LeadFormProps) {
+export default function LeadForm() {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [statusMessage, setStatusMessage] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const payload = useMemo(
+    () => ({ name: name.trim(), phone: phone.trim(), message: message.trim() }),
+    [name, phone, message],
+  );
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const digitsCount = phone.replace(/\D/g, '').length;
-    if (name.trim().length < 2 || name.trim().length > 80) {
-      setError('Введите имя от 2 до 80 символов');
+    const validation = leadSchema.safeParse(payload);
+    if (!validation.success) {
+      const errors = validation.error.flatten().fieldErrors;
+      setFieldErrors({
+        name: errors.name?.[0],
+        phone: errors.phone?.[0],
+        message: errors.message?.[0],
+      });
+      setStatusMessage('Проверьте корректность полей: имя, телефон и сообщение.');
       return;
     }
 
-    if (digitsCount < 10) {
-      setError('Введите корректный номер телефона');
-      return;
-    }
+    setFieldErrors({});
+    setStatusMessage('');
+    setSubmitting(true);
 
-    if (message.trim().length < 10 || message.trim().length > 1000) {
-      setError('Сообщение должно быть от 10 до 1000 символов');
-      return;
-    }
+    try {
+      const response = await fetch('/api/leads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(validation.data),
+      });
 
-    setError('');
-    await onSubmit({ name: name.trim(), phone: phone.trim(), message: message.trim() });
+      const responsePayload = (await response.json()) as {
+        errors?: Record<string, string[]>;
+      };
+
+      if (!response.ok) {
+        setFieldErrors({
+          name: responsePayload.errors?.name?.[0],
+          phone: responsePayload.errors?.phone?.[0],
+          message: responsePayload.errors?.message?.[0],
+        });
+        setStatusMessage(leadFormContent.genericErrorMessage);
+        return;
+      }
+
+      setName('');
+      setPhone('');
+      setMessage('');
+      setStatusMessage(leadFormContent.successMessage);
+    } catch {
+      setStatusMessage(leadFormContent.genericErrorMessage);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <section className="mx-auto max-w-3xl px-6 py-16">
-      <h2 className="text-3xl font-bold text-slate-900">Обсудим ваш проект</h2>
+      <h2 className="text-3xl font-bold text-slate-900">{leadFormContent.title}</h2>
       <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="name">
-            Name
+            {leadFormContent.fields.nameLabel}
           </label>
           <input
+            aria-describedby={fieldErrors.name ? 'name-error' : undefined}
+            aria-invalid={fieldErrors.name ? 'true' : 'false'}
             className="w-full rounded-md border border-slate-300 px-3 py-2"
             id="name"
             name="name"
@@ -58,13 +89,20 @@ export default function LeadForm({ onSubmit }: LeadFormProps) {
             type="text"
             value={name}
           />
+          {fieldErrors.name ? (
+            <p className="mt-1 text-sm text-red-600" id="name-error">
+              {fieldErrors.name}
+            </p>
+          ) : null}
         </div>
 
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="phone">
-            Phone
+            {leadFormContent.fields.phoneLabel}
           </label>
           <input
+            aria-describedby={fieldErrors.phone ? 'phone-error' : undefined}
+            aria-invalid={fieldErrors.phone ? 'true' : 'false'}
             className="w-full rounded-md border border-slate-300 px-3 py-2"
             id="phone"
             name="phone"
@@ -73,13 +111,20 @@ export default function LeadForm({ onSubmit }: LeadFormProps) {
             type="tel"
             value={phone}
           />
+          {fieldErrors.phone ? (
+            <p className="mt-1 text-sm text-red-600" id="phone-error">
+              {fieldErrors.phone}
+            </p>
+          ) : null}
         </div>
 
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="message">
-            Message
+            {leadFormContent.fields.messageLabel}
           </label>
           <textarea
+            aria-describedby={fieldErrors.message ? 'message-error' : undefined}
+            aria-invalid={fieldErrors.message ? 'true' : 'false'}
             className="w-full rounded-md border border-slate-300 px-3 py-2"
             id="message"
             name="message"
@@ -88,12 +133,25 @@ export default function LeadForm({ onSubmit }: LeadFormProps) {
             rows={5}
             value={message}
           />
+          {fieldErrors.message ? (
+            <p className="mt-1 text-sm text-red-600" id="message-error">
+              {fieldErrors.message}
+            </p>
+          ) : null}
         </div>
 
-        {error ? <p className="text-sm text-red-600">{error}</p> : null}
+        {statusMessage ? (
+          <p aria-live="polite" className="text-sm text-slate-700" role="alert">
+            {statusMessage}
+          </p>
+        ) : null}
 
-        <button className="rounded-md bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700" type="submit">
-          Оставить заявку
+        <button
+          className="rounded-md bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={submitting}
+          type="submit"
+        >
+          {submitting ? 'Отправка...' : leadFormContent.submitButton}
         </button>
       </form>
     </section>

@@ -35,7 +35,7 @@ export default function HomePage() {
           <CasesPreview cases={casesData} />
         </div>
         <div data-testid="lead-form-section">
-          <LeadForm onSubmit={(payload) => console.log('Lead submitted:', payload)} />
+          <LeadForm />
         </div>
       </main>
     </>

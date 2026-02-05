@@ -147,3 +147,20 @@ export const casesData: CaseStudy[] = [
     result: 'Увеличили оборот в 4.5 раза за 9 месяцев.',
   },
 ];
+
+export const leadFormContent = {
+  title: 'Обсудим ваш проект',
+  fields: {
+    nameLabel: 'Name',
+    phoneLabel: 'Phone',
+    messageLabel: 'Message',
+  },
+  submitButton: 'Оставить заявку',
+  successMessage: 'Заявка успешно отправлена. Мы свяжемся с вами в ближайшее время.',
+  genericErrorMessage: 'Не удалось отправить заявку. Попробуйте еще раз.',
+} as const;
+
+export const casesPreviewContent = {
+  title: 'Кейсы клиентов',
+  readMoreLabel: 'Read more',
+} as const;
