@@ -4,9 +4,19 @@
   "scripts": {
     "dev": "next dev -p ${PORT:-3001}",
     "build": "next build",
-    "start": "next start -p ${PORT:-3001}"
+    "start": "next start -p ${PORT:-3001}",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
+    "next": "^16.1.6",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
     "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/node": "25.2.1",
+    "@types/react": "19.2.13",
+    "typescript": "5.9.3"
   }
 }

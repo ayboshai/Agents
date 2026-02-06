@@ -73,7 +73,7 @@ export default function LeadForm() {
   return (
     <section className="mx-auto max-w-3xl px-6 py-16">
       <h2 className="text-3xl font-bold text-slate-900">{leadFormContent.title}</h2>
-      <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
+      <form className="mt-8 space-y-4" noValidate onSubmit={handleSubmit}>
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="name">
             {leadFormContent.fields.nameLabel}

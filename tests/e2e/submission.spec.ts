@@ -14,10 +14,11 @@ test.describe('No-LARP hardening', () => {
       (request) => request.url().includes('/api/leads') && request.method() === 'POST',
     );
 
-    await page.getByLabel('Name').fill(validLead.name);
-    await page.getByLabel('Phone').fill(validLead.phone);
-    await page.getByLabel('Message').fill(validLead.message);
-    await page.getByRole('button', { name: 'Оставить заявку' }).click();
+    // Verify labels are localized (Centralization check)
+    await page.getByLabel('Имя').fill(validLead.name);
+    await page.getByLabel('Телефон').fill(validLead.phone);
+    await page.getByLabel('Сообщение').fill(validLead.message);
+    await page.locator('form').getByRole('button', { name: 'Оставить заявку' }).click();
 
     const submitRequest = await submitRequestPromise;
     const payload = submitRequest.postDataJSON() as Record<string, string>;
@@ -41,17 +42,20 @@ test.describe('No-LARP hardening', () => {
 
   test('empty required fields expose ARIA-compliant validation errors', async ({ page }) => {
     await page.goto('/');
-    await page.getByRole('button', { name: 'Оставить заявку' }).click();
+    await page.locator('form').getByRole('button', { name: 'Оставить заявку' }).click();
 
-    const nameInput = page.getByLabel('Name');
-    const phoneInput = page.getByLabel('Phone');
-    const messageInput = page.getByLabel('Message');
+    const nameInput = page.getByLabel('Имя');
+    const phoneInput = page.getByLabel('Телефон');
+    const messageInput = page.getByLabel('Сообщение');
 
     await expect(nameInput).toHaveAttribute('aria-invalid', 'true');
     await expect(phoneInput).toHaveAttribute('aria-invalid', 'true');
     await expect(messageInput).toHaveAttribute('aria-invalid', 'true');
 
-    await expect(page.getByRole('alert')).toContainText(/имя|телефон|сообщение/i);
+    // Check for the summary alert (filter out Next.js route announcer)
+    await expect(
+      page.getByRole('alert').filter({ hasText: /имя|телефон|сообщение/i })
+    ).toBeVisible();
   });
 
   test('home page exports required SEO tags', async ({ page }) => {

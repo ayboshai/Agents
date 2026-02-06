@@ -151,9 +151,9 @@ export const casesData: CaseStudy[] = [
 export const leadFormContent = {
   title: 'Обсудим ваш проект',
   fields: {
-    nameLabel: 'Name',
-    phoneLabel: 'Phone',
-    messageLabel: 'Message',
+    nameLabel: 'Имя',
+    phoneLabel: 'Телефон',
+    messageLabel: 'Сообщение',
   },
   submitButton: 'Оставить заявку',
   successMessage: 'Заявка успешно отправлена. Мы свяжемся с вами в ближайшее время.',
