@@ -170,7 +170,18 @@ def _matches_any(path: str, globs: Iterable[str]) -> bool:
     return any(fnmatch.fnmatch(path, g) for g in globs)
 
 
-def _is_allowed(path: str, role: str, actor: str, *, allow_codeowners_edit: bool) -> tuple[bool, str]:
+def _is_allowed(
+    path: str,
+    role: str,
+    actor: str,
+    *,
+    state_path: str,
+    allow_state_edit: bool,
+    allow_codeowners_edit: bool,
+) -> tuple[bool, str]:
+    if path == state_path and not allow_state_edit and actor != "orchestrator":
+        return False, f"{state_path} is orchestrator-only in working-tree mode. Use transition_state.py."
+
     if path == CODEOWNERS_PATH and not allow_codeowners_edit:
         return (
             False,
@@ -242,6 +253,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         )
 
     allow_codeowners_edit = bool(args.allow_codeowners_edit or os.environ.get(ALLOW_CODEOWNERS_ENV) == "1")
+    allow_state_edit = mode == "diff"
 
     violations: list[Violation] = []
     for p in changed:
@@ -249,6 +261,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             p,
             role=role,
             actor=("orchestrator" if actor == "orchestrator" else "agent"),
+            state_path=args.state,
+            allow_state_edit=allow_state_edit,
             allow_codeowners_edit=allow_codeowners_edit,
         )
         if not ok:
@@ -263,6 +277,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             "role": role,
             "actor": actor,
             "next_phase": next_phase,
+            "allow_state_edit": allow_state_edit,
             "changed_files": changed,
             "violations": [v.__dict__ for v in violations],
         }
