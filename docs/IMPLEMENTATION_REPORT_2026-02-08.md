@@ -22,6 +22,7 @@ This patch set closes the remaining issues from the Analyst Verification Report 
   - Prevents history rewrites and phase skipping via PR edits.
 - Updated `policy_guard.py` to support PR-based state transitions safely:
   - In CI diff mode, it infers the executing role from the **base** `swarm_state.json.next_phase` (not the head).
+  - In L1 working-tree mode, it keeps `swarm_state.json` **orchestrator-only** (agents must use `transition_state.py`).
   - Added hard protection against `.github/CODEOWNERS` edits unless explicitly overridden.
 
 ### Repo Hygiene / Operational Readiness
@@ -86,4 +87,3 @@ Expected outcomes:
 - Replace placeholders in `.github/CODEOWNERS` (`@REPLACE_ME_*`) with real GitHub users/teams.
 - Enable Branch Protection on `main` with required checks from `.github/workflows/ci.yml`.
 - No Codex/OpenAI API key is required for GitHub Actions, because CI does not call any LLM API.
-
