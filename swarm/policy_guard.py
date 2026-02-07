@@ -4,19 +4,32 @@ from __future__ import annotations
 import argparse
 import fnmatch
 import json
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Optional
 
-from validate_state import (
-    PHASE_TO_ROLE,
-    ValidationError,
-    _canonicalize_phase,
-    _load_json,
-    _normalize_role,
-)
+try:
+    # Support both:
+    # - `python3 swarm/policy_guard.py` (flat imports)
+    # - `python3 -m swarm.policy_guard` (package imports)
+    from .validate_state import (
+        PHASE_TO_ROLE,
+        ValidationError,
+        _canonicalize_phase,
+        _load_json,
+        _normalize_role,
+    )
+except ImportError:  # pragma: no cover
+    from validate_state import (  # type: ignore
+        PHASE_TO_ROLE,
+        ValidationError,
+        _canonicalize_phase,
+        _load_json,
+        _normalize_role,
+    )
 
 
 @dataclass(frozen=True)
@@ -26,11 +39,13 @@ class Violation:
 
 
 GLOBAL_DENY_GLOBS_AGENT: list[str] = [
-    # Evidence/state must only be written by orchestrator scripts.
-    "swarm_state.json",
+    # Evidence must only be written by orchestrator scripts.
     "tasks/logs/**",
     "tasks/evidence/**",
 ]
+
+CODEOWNERS_PATH = ".github/CODEOWNERS"
+ALLOW_CODEOWNERS_ENV = "CMAS_ALLOW_CODEOWNERS_EDIT"
 
 ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
     # Architect owns system law, contracts, and infrastructure.
@@ -38,10 +53,17 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "SWARM_CONSTITUTION.md",
         "SWARM_ARCHITECTURE.md",
         "TASKS_CONTEXT.md",
+        "README.md",
+        ".gitignore",
+        "swarm_state.json",
         "docs/**",
         "config/personas/**",
         ".github/**",
+        "githooks/**",
         "swarm/**",
+        "requirements.txt",
+        "src/**",
+        "workflows/**",
         "tasks/queue/**",
     ],
     # QA owns tests and test configuration.
@@ -52,6 +74,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "package.json",
         "package-lock.json",
         "TASKS_CONTEXT.md",
+        "swarm_state.json",
     ],
     # Backend owns server/business logic (project-specific; keep minimal exclusions).
     "backend": [
@@ -63,6 +86,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "package.json",
         "package-lock.json",
         "tsconfig.json",
+        "swarm_state.json",
     ],
     # Frontend owns UI code.
     "frontend": [
@@ -73,6 +97,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "package.json",
         "package-lock.json",
         "tsconfig.json",
+        "swarm_state.json",
     ],
     # Analyst owns feedback/reports only (no code).
     "analyst": [
@@ -80,6 +105,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "tasks/reports/**",
         "tasks/completed/**",
         "docs/**",
+        "swarm_state.json",
     ],
     # Orchestrator may write evidence/state/logs.
     "orchestrator": [
@@ -107,6 +133,19 @@ def _run_git(args: list[str]) -> str:
     return res.stdout
 
 
+def _load_json_from_git(ref: str, path: str) -> dict[str, Any]:
+    if Path(path).is_absolute():
+        raise ValidationError("--state must be a repo-relative path in diff mode (CI).")
+    raw = _run_git(["show", f"{ref}:{path}"])
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        raise ValidationError(f"Invalid JSON in {ref}:{path}: {e}") from e
+    if not isinstance(data, dict):
+        raise ValidationError(f"{ref}:{path} must contain a JSON object, got: {type(data).__name__}")
+    return data
+
+
 def _changed_files_working_tree() -> list[str]:
     out = _run_git(["status", "--porcelain=v1"])
     files: list[str] = []
@@ -131,7 +170,13 @@ def _matches_any(path: str, globs: Iterable[str]) -> bool:
     return any(fnmatch.fnmatch(path, g) for g in globs)
 
 
-def _is_allowed(path: str, role: str, actor: str) -> tuple[bool, str]:
+def _is_allowed(path: str, role: str, actor: str, *, allow_codeowners_edit: bool) -> tuple[bool, str]:
+    if path == CODEOWNERS_PATH and not allow_codeowners_edit:
+        return (
+            False,
+            f"{CODEOWNERS_PATH} is protected; set --allow-codeowners-edit or {ALLOW_CODEOWNERS_ENV}=1 to modify it.",
+        )
+
     # Actor governs evidence/state writes.
     if actor != "orchestrator" and _matches_any(path, GLOBAL_DENY_GLOBS_AGENT):
         return False, f"Path is orchestrator-only: {path}"
@@ -157,10 +202,27 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--actor", default="agent", help="Who is performing writes: agent|orchestrator")
     parser.add_argument("--base", help="Base ref for diff mode (CI). If set, --head is required.")
     parser.add_argument("--head", help="Head ref for diff mode (CI).")
+    parser.add_argument(
+        "--allow-codeowners-edit",
+        action="store_true",
+        help=f"Allow editing {CODEOWNERS_PATH} (normally forbidden to prevent weakening enforcement).",
+    )
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON output.")
     args = parser.parse_args(argv)
 
-    state = _load_json(Path(args.state))
+    if args.base:
+        if not args.head:
+            raise ValidationError("--head is required when --base is set.")
+        changed = _changed_files_diff(args.base, args.head)
+        mode = "diff"
+        state = _load_json_from_git(args.base, args.state)
+        state_ref = args.base
+    else:
+        changed = _changed_files_working_tree()
+        mode = "working_tree"
+        state = _load_json(Path(args.state))
+        state_ref = "working_tree"
+
     next_phase_raw = state.get("next_phase")
     if not isinstance(next_phase_raw, str):
         raise ValidationError("swarm_state.json.next_phase must be a string.")
@@ -179,18 +241,16 @@ def main(argv: Optional[list[str]] = None) -> int:
             f"Role/phase mismatch: next_phase={next_phase} expects role={expected_role}, got role={role}."
         )
 
-    if args.base:
-        if not args.head:
-            raise ValidationError("--head is required when --base is set.")
-        changed = _changed_files_diff(args.base, args.head)
-        mode = "diff"
-    else:
-        changed = _changed_files_working_tree()
-        mode = "working_tree"
+    allow_codeowners_edit = bool(args.allow_codeowners_edit or os.environ.get(ALLOW_CODEOWNERS_ENV) == "1")
 
     violations: list[Violation] = []
     for p in changed:
-        ok, reason = _is_allowed(p, role=role, actor=("orchestrator" if actor == "orchestrator" else "agent"))
+        ok, reason = _is_allowed(
+            p,
+            role=role,
+            actor=("orchestrator" if actor == "orchestrator" else "agent"),
+            allow_codeowners_edit=allow_codeowners_edit,
+        )
         if not ok:
             violations.append(Violation(path=p, reason=reason))
 
@@ -199,6 +259,7 @@ def main(argv: Optional[list[str]] = None) -> int:
         payload = {
             "ok": ok,
             "mode": mode,
+            "state_ref": state_ref,
             "role": role,
             "actor": actor,
             "next_phase": next_phase,
@@ -218,4 +279,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

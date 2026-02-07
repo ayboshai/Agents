@@ -22,6 +22,9 @@ jobs:
           python-version: '3.11'
       - name: Validate State Machine
         run: python3 swarm/validate_state.py --json
+      - name: Validate State Transition (PR)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: python3 swarm/state_diff_guard.py --base ${{ github.event.pull_request.base.sha }} --head ${{ github.sha }} --json
 
   policy_guard:
     name: swarm/policy-guard
@@ -113,4 +116,3 @@ jobs:
         with:
           name: swarm-ci-attestation
           path: swarm-ci-attestation.json
-

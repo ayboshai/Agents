@@ -8,7 +8,13 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from capture_test_output import main as capture_main
+try:
+    # Support both:
+    # - `python3 swarm/run_and_capture.py`
+    # - `python3 -m swarm.run_and_capture`
+    from .capture_test_output import main as capture_main
+except ImportError:  # pragma: no cover
+    from capture_test_output import main as capture_main  # type: ignore
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -64,4 +70,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

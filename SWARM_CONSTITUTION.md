@@ -237,8 +237,10 @@ CI MUST run on every PR and on `main` with required status checks (names are exa
 1. `swarm/state-guard`:
    - validates `swarm_state.json` schema,
    - validates that transitions do not skip phases,
+   - on PRs: validates that `swarm_state.json` changes are append-only and represent exactly one legal transition,
    - validates that required phase artifacts exist.
 2. `swarm/policy-guard`:
+   - in CI diff mode: infers the executing role from the **base** `swarm_state.json.next_phase` (not the head),
    - enforces path-level rules per phase (who can change what),
    - blocks edits to CI/gates by non-Architect phases.
 3. `quality/static`:

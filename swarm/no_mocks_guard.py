@@ -32,7 +32,11 @@ JS_RULES: list[tuple[str, re.Pattern[str]]] = [
 PY_RULES: list[tuple[str, re.Pattern[str]]] = [
     ("unittest.mock", re.compile(r"\bunittest\.mock\b")),
     ("MagicMock", re.compile(r"\bMagicMock\b")),
+    ("Mock()", re.compile(r"\bMock\s*\(")),
+    ("patch decorator", re.compile(r"^\s*@\s*patch\b")),
     ("patch(", re.compile(r"\bpatch\s*\(")),
+    ("create_autospec", re.compile(r"\bcreate_autospec\b")),
+    ("mocker fixture", re.compile(r"\bmocker\.")),
 ]
 
 

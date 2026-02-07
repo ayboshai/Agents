@@ -12,17 +12,34 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, Optional
 
-from validate_state import (
-    CANONICAL_PHASES,
-    DEFAULT_REQUIRED_PHASE_SEQUENCE,
-    PHASE_TO_ROLE,
-    ValidationError,
-    _canonicalize_phase,
-    _compute_state_hmac,
-    _iter_history_phases,
-    _load_json,
-    _normalize_role,
-)
+try:
+    import fcntl  # type: ignore[attr-defined]
+except ImportError:  # pragma: no cover (non-POSIX)
+    fcntl = None  # type: ignore[assignment]
+
+try:
+    # Support both:
+    # - `python3 swarm/transition_state.py`
+    # - `python3 -m swarm.transition_state`
+    from .validate_state import (
+        DEFAULT_REQUIRED_PHASE_SEQUENCE,
+        PHASE_TO_ROLE,
+        ValidationError,
+        _canonicalize_phase,
+        _compute_state_hmac,
+        _iter_history_phases,
+        _normalize_role,
+    )
+except ImportError:  # pragma: no cover
+    from validate_state import (  # type: ignore
+        DEFAULT_REQUIRED_PHASE_SEQUENCE,
+        PHASE_TO_ROLE,
+        ValidationError,
+        _canonicalize_phase,
+        _compute_state_hmac,
+        _iter_history_phases,
+        _normalize_role,
+    )
 
 
 # Allowed transitions define the non-skippable state machine.
@@ -67,6 +84,22 @@ def _ensure_required_sequence(state: dict[str, Any]) -> list[str]:
     return list(DEFAULT_REQUIRED_PHASE_SEQUENCE)
 
 
+def _load_json_from_text(path: Path, text: str) -> dict[str, Any]:
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise ValidationError(f"Invalid JSON in {path}: {e}") from e
+    if not isinstance(data, dict):
+        raise ValidationError(f"State file must contain a JSON object, got: {type(data).__name__}")
+    return data
+
+
+def _lock_exclusive(f) -> None:
+    if fcntl is None:
+        return
+    fcntl.flock(f, fcntl.LOCK_EX)
+
+
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(description="Transition swarm_state.json (the only supported writer).")
     parser.add_argument("--state", default="swarm_state.json", help="Path to swarm_state.json")
@@ -82,92 +115,113 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     state_path = Path(args.state)
-    state = _load_json(state_path)
+    try:
+        with state_path.open("r+", encoding="utf-8") as f:
+            _lock_exclusive(f)
+            original_text = f.read()
+            state = _load_json_from_text(state_path, original_text)
 
-    role = _normalize_role(args.role)
+            role = _normalize_role(args.role)
 
-    raw_current = state.get("current_phase")
-    raw_next = state.get("next_phase")
-    if not isinstance(raw_current, str) or not isinstance(raw_next, str):
-        raise ValidationError("State must contain string fields: current_phase and next_phase.")
+            raw_current = state.get("current_phase")
+            raw_next = state.get("next_phase")
+            if not isinstance(raw_current, str) or not isinstance(raw_next, str):
+                raise ValidationError("State must contain string fields: current_phase and next_phase.")
 
-    current_phase = _canonicalize_phase(raw_current)
-    executing_phase = _canonicalize_phase(raw_next)  # the phase we are completing now
-    next_phase = _canonicalize_phase(args.to)
+            executing_phase = _canonicalize_phase(raw_next)  # the phase we are completing now
+            next_phase = _canonicalize_phase(args.to)
 
-    if state.get("is_locked") is True:
-        raise ValidationError("State is locked (is_locked=true). Cannot transition.")
+            if state.get("is_locked") is True:
+                raise ValidationError("State is locked (is_locked=true). Cannot transition.")
 
-    expected_role = PHASE_TO_ROLE.get(executing_phase)
-    if expected_role is None:
-        raise ValidationError(f"Internal error: no role mapping for phase {executing_phase}.")
-    if role != expected_role:
-        raise ValidationError(
-            f"Role/phase mismatch: role={role!r} cannot complete next_phase={executing_phase!r}. "
-            f"Expected role: {expected_role!r}."
-        )
+            expected_role = PHASE_TO_ROLE.get(executing_phase)
+            if expected_role is None:
+                raise ValidationError(f"Internal error: no role mapping for phase {executing_phase}.")
+            if role != expected_role:
+                raise ValidationError(
+                    f"Role/phase mismatch: role={role!r} cannot complete next_phase={executing_phase!r}. "
+                    f"Expected role: {expected_role!r}."
+                )
 
-    if (executing_phase, next_phase) not in ALLOWED_TRANSITIONS:
-        allowed = sorted([b for (a, b) in ALLOWED_TRANSITIONS if a == executing_phase])
-        raise ValidationError(
-            f"Illegal transition: {executing_phase} -> {next_phase}. Allowed next phases: {allowed}"
-        )
+            if (executing_phase, next_phase) not in ALLOWED_TRANSITIONS:
+                allowed = sorted([b for (a, b) in ALLOWED_TRANSITIONS if a == executing_phase])
+                raise ValidationError(
+                    f"Illegal transition: {executing_phase} -> {next_phase}. Allowed next phases: {allowed}"
+                )
 
-    required_seq = _ensure_required_sequence(state)
+            required_seq = _ensure_required_sequence(state)
 
-    # Enforce "no skipping" via next_phase. Allow fix loops backwards.
-    if next_phase in required_seq:
-        idx_next = required_seq.index(next_phase)
-        timeline = [_canonicalize_phase(p) for p in _iter_history_phases(state.get("history"))]
-        timeline.append(executing_phase)
-        completed = set(timeline)
-        missing = [p for p in required_seq[:idx_next] if p not in completed]
-        if missing:
-            raise ValidationError(
-                f"Skip detected: cannot transition to {next_phase} without completing required phases: {missing}"
+            # Enforce "no skipping" via next_phase. Allow fix loops backwards.
+            if next_phase in required_seq:
+                idx_next = required_seq.index(next_phase)
+                timeline = [_canonicalize_phase(p) for p in _iter_history_phases(state.get("history"))]
+                timeline.append(executing_phase)
+                completed = set(timeline)
+                missing = [p for p in required_seq[:idx_next] if p not in completed]
+                if missing:
+                    raise ValidationError(
+                        f"Skip detected: cannot transition to {next_phase} without completing required phases: {missing}"
+                    )
+
+            evidence_obj = None
+            if args.evidence:
+                evidence_path = Path(args.evidence)
+                if not evidence_path.exists():
+                    raise ValidationError(f"Evidence file not found: {evidence_path}")
+                evidence_obj = {
+                    "path": str(evidence_path),
+                    "sha256": _sha256_file(evidence_path),
+                }
+
+            # Update state (canonical fields remain present).
+            state["current_phase"] = executing_phase
+            state["next_phase"] = next_phase
+
+            history_list: list[Any] = list(state.get("history") or [])
+            history_list.append(
+                {
+                    "phase": executing_phase,
+                    "at": _utc_now_iso(),
+                    "by_role": role,
+                    "note": args.note,
+                    "evidence": evidence_obj,
+                }
             )
+            state["history"] = history_list
 
-    evidence_obj = None
-    if args.evidence:
-        evidence_path = Path(args.evidence)
-        if not evidence_path.exists():
-            raise ValidationError(f"Evidence file not found: {evidence_path}")
-        evidence_obj = {
-            "path": str(evidence_path),
-            "sha256": _sha256_file(evidence_path),
-        }
+            # Optional tamper-evidence HMAC.
+            hmac_key = os.environ.get("SWARM_STATE_HMAC_KEY")
+            if hmac_key:
+                state["state_hmac"] = _compute_state_hmac(state, hmac_key.encode("utf-8"))
 
-    # Update state (canonical fields remain present).
-    state["current_phase"] = executing_phase
-    state["next_phase"] = next_phase
+            rendered = json.dumps(state, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
+            if args.dry_run:
+                sys.stdout.write(rendered)
+                return 0
 
-    history_list: list[Any] = list(state.get("history") or [])
-    history_list.append(
-        {
-            "phase": executing_phase,
-            "at": _utc_now_iso(),
-            "by_role": role,
-            "note": args.note,
-            "evidence": evidence_obj,
-        }
-    )
-    state["history"] = history_list
+            # Backup before write (best-effort recovery). Keep outside git via `*.bak` ignore.
+            backup_path = state_path.with_suffix(state_path.suffix + ".bak")
+            try:
+                backup_path.write_text(original_text, encoding="utf-8")
+            except OSError:
+                # Non-fatal: backups are a safety net, but transitions must remain deterministic.
+                pass
 
-    # Optional tamper-evidence HMAC.
-    hmac_key = os.environ.get("SWARM_STATE_HMAC_KEY")
-    if hmac_key:
-        state["state_hmac"] = _compute_state_hmac(state, hmac_key.encode("utf-8"))
+            f.seek(0)
+            f.truncate()
+            f.write(rendered)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except OSError:
+                # fsync can fail on some filesystems; the state file is still written.
+                pass
 
-    rendered = json.dumps(state, indent=2, sort_keys=True, ensure_ascii=True) + "\n"
-    if args.dry_run:
-        sys.stdout.write(rendered)
-        return 0
-
-    state_path.write_text(rendered, encoding="utf-8")
-    sys.stdout.write(f"OK: transitioned {executing_phase} -> {next_phase}\n")
-    return 0
+            sys.stdout.write(f"OK: transitioned {executing_phase} -> {next_phase}\n")
+            return 0
+    except FileNotFoundError as e:
+        raise ValidationError(f"Missing required file: {state_path}") from e
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

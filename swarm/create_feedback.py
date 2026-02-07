@@ -9,7 +9,13 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Optional
 
-from validate_state import ValidationError, _canonicalize_phase, _load_json
+try:
+    # Support both:
+    # - `python3 swarm/create_feedback.py`
+    # - `python3 -m swarm.create_feedback`
+    from .validate_state import ValidationError, _canonicalize_phase, _load_json
+except ImportError:  # pragma: no cover
+    from validate_state import ValidationError, _canonicalize_phase, _load_json  # type: ignore
 
 
 def _utc_now_compact() -> str:
@@ -129,4 +135,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -8,7 +8,25 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
 
-from validate_state import DEFAULT_REQUIRED_PHASE_SEQUENCE, ValidationError, _canonicalize_phase, _iter_history_phases, _load_json
+try:
+    # Support both:
+    # - `python3 swarm/migrate_state.py`
+    # - `python3 -m swarm.migrate_state`
+    from .validate_state import (
+        DEFAULT_REQUIRED_PHASE_SEQUENCE,
+        ValidationError,
+        _canonicalize_phase,
+        _iter_history_phases,
+        _load_json,
+    )
+except ImportError:  # pragma: no cover
+    from validate_state import (  # type: ignore
+        DEFAULT_REQUIRED_PHASE_SEQUENCE,
+        ValidationError,
+        _canonicalize_phase,
+        _iter_history_phases,
+        _load_json,
+    )
 
 
 def _utc_now_iso() -> str:
@@ -105,4 +123,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

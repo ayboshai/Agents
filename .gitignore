@@ -10,3 +10,11 @@ yarn-error.log*
 .DS_Store
 __pycache__/
 *.pyc
+
+# CMAS-OS evidence / safety backups (local-only by default)
+tasks/evidence/test-runs/*.log
+*.bak
+
+# Secrets must not be committed
+.env*
+!.env.example

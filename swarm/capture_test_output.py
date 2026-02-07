@@ -54,7 +54,7 @@ def _extract_head_lines(text: str, max_lines: int) -> str:
 
 def _find_last_hmac(ci_logs_md: str) -> str:
     # Convention: each run block includes a line "- hmac: <hex>"
-    matches = re.findall(r"^- hmac: ([0-9a-f]{64})\\s*$", ci_logs_md, flags=re.MULTILINE)
+    matches = re.findall(r"^- hmac: ([0-9a-f]{64})\s*$", ci_logs_md, flags=re.MULTILINE)
     return matches[-1] if matches else ""
 
 
@@ -163,4 +163,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

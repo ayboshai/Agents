@@ -5,6 +5,20 @@ This folder contains **programmatic guards** that turn the constitution from "so
 ## Level 1 (OpenClaw/Danny AI Orchestrated)
 Use these scripts **before** and **after** each agent action.
 
+### One-Command Wrapper (Recommended)
+If you want a single entrypoint that runs the full Level 1 enforcement chain:
+```bash
+python3 swarm/orchestrate.py \
+  --role <architect|qa|backend|frontend|analyst> \
+  --command "<TEST_COMMAND>" \
+  --to <NEXT_PHASE> \
+  --note "what changed"
+```
+
+Notes:
+- This tool is designed for the Fix Loop: it transitions state even if the command fails, as long as evidence capture succeeds.
+- The command exit code is recorded inside the transition note and the append-only evidence index.
+
 ### 1) Pre-Action: State Validation (Hard Stop)
 ```bash
 python3 swarm/validate_state.py --role <architect|qa|backend|frontend|analyst>
@@ -21,6 +35,11 @@ Run the appropriate commands for the current project (as defined by `TASKS_CONTE
 set -o pipefail
 <TEST_COMMAND> 2>&1 | tee /tmp/swarm_test_output.txt
 exit_code=${PIPESTATUS[0]}
+```
+
+Alternatively, use the wrapper:
+```bash
+python3 swarm/run_and_capture.py --command "<TEST_COMMAND>" --phase "<CURRENT_PHASE>" --task-id "<TASK_ID>"
 ```
 
 ### 4) Append Evidence (Append-Only) + Store Immutable Raw Output
@@ -57,4 +76,3 @@ If the orchestrator can keep secrets out of the agent runtime, set:
 - `SWARM_LOG_HMAC_KEY` to chain-sign `tasks/logs/CI_LOGS.md` run blocks.
 
 Guards will verify signatures when the keys are present.
-

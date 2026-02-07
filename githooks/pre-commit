@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+python3 swarm/validate_state.py --json >/dev/null
+python3 swarm/no_placeholders_guard.py
+python3 swarm/no_mocks_guard.py
+
