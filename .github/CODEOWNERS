@@ -1,0 +1,15 @@
+# Replace the owners below with real GitHub users/teams for your org.
+# This file enables separation-of-concerns when Branch Protection requires CODEOWNERS reviews.
+
+/.github/ @REPLACE_ME_ARCHITECT
+/SWARM_CONSTITUTION.md @REPLACE_ME_ARCHITECT
+/SWARM_ARCHITECTURE.md @REPLACE_ME_ARCHITECT
+/swarm_state.json @REPLACE_ME_ARCHITECT
+/swarm/ @REPLACE_ME_ARCHITECT
+/config/personas/ @REPLACE_ME_ARCHITECT
+
+/tests/ @REPLACE_ME_QA
+
+/tasks/feedback/ @REPLACE_ME_ANALYST
+/tasks/reports/ @REPLACE_ME_ANALYST
+

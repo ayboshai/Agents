@@ -1,0 +1,116 @@
+name: CMAS-OS CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: cmas-os-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  state_guard:
+    name: swarm/state-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate State Machine
+        run: python3 swarm/validate_state.py --json
+
+  policy_guard:
+    name: swarm/policy-guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Enforce Separation of Concerns
+        if: ${{ github.event_name == 'pull_request' }}
+        run: python3 swarm/policy_guard.py --base ${{ github.event.pull_request.base.sha }} --head ${{ github.sha }} --json
+
+  no_mocks:
+    name: quality/no-mocks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python3 swarm/no_mocks_guard.py
+
+  no_placeholders:
+    name: quality/no-placeholders
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python3 swarm/no_placeholders_guard.py
+
+  unit_integration:
+    name: tests/unit-integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+
+  e2e:
+    name: tests/e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  attest:
+    name: attest/ci-summary
+    runs-on: ubuntu-latest
+    needs: [state_guard, policy_guard, no_mocks, no_placeholders, unit_integration, e2e]
+    if: ${{ always() }}
+    steps:
+      - name: Write Attestation
+        run: |
+          cat > swarm-ci-attestation.json << 'JSON'
+          {
+            "schema_version": "1.0",
+            "source": "github-actions",
+            "run_id": "${{ github.run_id }}",
+            "run_attempt": "${{ github.run_attempt }}",
+            "sha": "${{ github.sha }}",
+            "ref": "${{ github.ref }}",
+            "results": {
+              "swarm/state-guard": "${{ needs.state_guard.result }}",
+              "swarm/policy-guard": "${{ needs.policy_guard.result }}",
+              "quality/no-mocks": "${{ needs.no_mocks.result }}",
+              "quality/no-placeholders": "${{ needs.no_placeholders.result }}",
+              "tests/unit-integration": "${{ needs.unit_integration.result }}",
+              "tests/e2e": "${{ needs.e2e.result }}"
+            }
+          }
+          JSON
+      - uses: actions/upload-artifact@v4
+        with:
+          name: swarm-ci-attestation
+          path: swarm-ci-attestation.json
+

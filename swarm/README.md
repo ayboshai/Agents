@@ -1,0 +1,60 @@
+# Swarm Guards (Level 1 + Level 2)
+
+This folder contains **programmatic guards** that turn the constitution from "soft text" into executable gates.
+
+## Level 1 (OpenClaw/Danny AI Orchestrated)
+Use these scripts **before** and **after** each agent action.
+
+### 1) Pre-Action: State Validation (Hard Stop)
+```bash
+python3 swarm/validate_state.py --role <architect|qa|backend|frontend|analyst>
+```
+
+### 2) After Changes: Policy Guard (Separation of Concerns)
+```bash
+python3 swarm/policy_guard.py --role <architect|qa|backend|frontend|analyst>
+```
+
+### 3) Run Real Tests and Capture Raw Output
+Run the appropriate commands for the current project (as defined by `TASKS_CONTEXT.md`), redirecting stdout/stderr:
+```bash
+set -o pipefail
+<TEST_COMMAND> 2>&1 | tee /tmp/swarm_test_output.txt
+exit_code=${PIPESTATUS[0]}
+```
+
+### 4) Append Evidence (Append-Only) + Store Immutable Raw Output
+```bash
+python3 swarm/capture_test_output.py \
+  --input /tmp/swarm_test_output.txt \
+  --command "<TEST_COMMAND>" \
+  --exit-code "$exit_code" \
+  --phase "<CURRENT_PHASE>" \
+  --task-id "<TASK_ID>"
+```
+
+### 5) Transition State (Only Supported Writer)
+```bash
+python3 swarm/transition_state.py \
+  --role <architect|qa|backend|frontend|analyst> \
+  --to <NEXT_PHASE> \
+  --evidence /tmp/swarm_test_output.txt \
+  --note "short reason"
+```
+
+### 6) Analyst Feedback Artifact
+```bash
+python3 swarm/create_feedback.py \
+  --task-id "<TASK_ID>" \
+  --run-id "<RUN_ID>" \
+  --evidence /tmp/swarm_test_output.txt \
+  --summary "what failed and why"
+```
+
+## Optional Integrity (Tamper-Evidence)
+If the orchestrator can keep secrets out of the agent runtime, set:
+- `SWARM_STATE_HMAC_KEY` to require/verify `swarm_state.json` signatures.
+- `SWARM_LOG_HMAC_KEY` to chain-sign `tasks/logs/CI_LOGS.md` run blocks.
+
+Guards will verify signatures when the keys are present.
+
