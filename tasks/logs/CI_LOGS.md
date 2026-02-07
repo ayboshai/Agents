@@ -1,4 +1,12 @@
 
+<!--
+AUTO-GENERATED EVIDENCE INDEX (Level 1 + Level 2)
+
+DO NOT EDIT MANUALLY.
+- L1: only `python3 swarm/capture_test_output.py` / `python3 swarm/run_and_capture.py` may append.
+- L2: CI attestation + GitHub Actions logs are authoritative; this file is non-authoritative convenience.
+-->
+
 > ab-company-clone@0.1.0 test
 > vitest run
 
