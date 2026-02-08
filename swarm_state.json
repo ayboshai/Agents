@@ -1,5 +1,5 @@
 {
-  "current_phase": "ARCHITECT",
+  "current_phase": "QA_CONTRACT",
   "enforcement_level": "L1",
   "history": [
     {
@@ -107,6 +107,13 @@
       "evidence": null,
       "note": "ARCHITECT complete: merge polish governance docs + constitution updates",
       "phase": "ARCHITECT"
+    },
+    {
+      "at": "2026-02-08T12:34:04Z",
+      "by_role": "qa",
+      "evidence": null,
+      "note": "QA contract: governance invariants verified",
+      "phase": "QA_CONTRACT"
     }
   ],
   "is_locked": false,
@@ -127,7 +134,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "QA_CONTRACT",
+  "next_phase": "BACKEND",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
