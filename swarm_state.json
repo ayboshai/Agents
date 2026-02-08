@@ -1,5 +1,5 @@
 {
-  "current_phase": "QA_E2E",
+  "current_phase": "ANALYST_FINAL",
   "enforcement_level": "L1",
   "history": [
     {
@@ -65,6 +65,13 @@
       "legacy_phase": "QA_VALIDATION_COMPLETE",
       "note": "migrated from legacy phase 'QA_VALIDATION_COMPLETE'",
       "phase": "QA_E2E"
+    },
+    {
+      "at": "2026-02-08T05:59:21Z",
+      "by_role": "analyst",
+      "evidence": null,
+      "note": "Escalation: enable L2-first orchestrator CI gating",
+      "phase": "ANALYST_FINAL"
     }
   ],
   "is_locked": false,
@@ -85,7 +92,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "ANALYST_FINAL",
+  "next_phase": "ARCHITECT",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
