@@ -1,5 +1,5 @@
 {
-  "current_phase": "ANALYST_CI_GATE",
+  "current_phase": "ARCHITECT",
   "enforcement_level": "L1",
   "history": [
     {
@@ -100,6 +100,13 @@
       "evidence": null,
       "note": "ANALYST_CI_GATE escalation: governance/docs polish required (merge PR #14)",
       "phase": "ANALYST_CI_GATE"
+    },
+    {
+      "at": "2026-02-08T08:21:27Z",
+      "by_role": "architect",
+      "evidence": null,
+      "note": "ARCHITECT complete: merge polish governance docs + constitution updates",
+      "phase": "ARCHITECT"
     }
   ],
   "is_locked": false,
@@ -120,7 +127,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "ARCHITECT",
+  "next_phase": "QA_CONTRACT",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
