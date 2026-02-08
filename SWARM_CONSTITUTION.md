@@ -1,3 +1,9 @@
+---
+version: "2.0.0"
+min_guard_version: "1.0.0"
+last_updated: "2026-02-08"
+---
+
 # Constitutional Multi-Agent Swarm OS (CMAS-OS)
 
 This document is the **single source of truth** for how the swarm operates and how violations are prevented.
@@ -196,7 +202,35 @@ Every Dev/QA phase MUST run this 7-step internal checklist before declaring the 
 6. **Prod checklist:** config externalized, secrets safe, perf sanity, deterministic behavior.
 7. **Final audit pass:** review the last task end-to-end and fix everything still broken.
 
----
+## B.10 Analyst Response SLA (P0)
+1. Analyst MUST respond to a gate request within **24 hours** (configurable per project in `TASKS_CONTEXT.md`).
+2. If no response within SLA:
+   - Escalate to Owner/Architect.
+   - Owner MAY override with `--role orchestrator` transition if documented.
+3. Auto-approve after SLA is FORBIDDEN unless explicitly enabled via `CMAS_ANALYST_AUTO_APPROVE=1` in the project.
+4. SLA clock starts when:
+   - **L2:** PR is created with all required checks green.
+   - **L1:** `swarm_state.json.next_phase` transitions to `ANALYST_*`.
+
+## B.11 Test Double Boundaries (P0/P2)
+Clarification on what is forbidden vs. allowed in tests:
+
+**FORBIDDEN (block CI):**
+- `vi.mock`, `jest.mock`, `sinon.stub`, `MagicMock`, `patch`, `create_autospec`
+- `mockImplementation`, `mockReturnValue`, `spyOn` for internal logic
+- Any mock that replaces the system under test
+
+**ALLOWED (with justification):**
+- `nock` / `msw` for external HTTP services when no sandbox exists
+- `vi.useFakeTimers()` / `jest.useFakeTimers()` for time-dependent tests
+- Database fixtures (but real DB engine, not in-memory SQLite instead of Postgres)
+- Environment variable overrides for test isolation
+
+**Required documentation:** if using allowed doubles, the test file MUST include a comment:
+```
+// TEST_DOUBLE_JUSTIFICATION: <reason why real service cannot be used>
+```
+
 
 # C) Enforcement Mechanisms (Hard Locks)
 
@@ -325,6 +359,18 @@ This is the required, non-optional sequence to eliminate the enforcement gap:
 ---
 
 # D) Execution Protocol as a Finite State Machine
+
+## D.0 Project Completion Criteria
+A project is considered **COMPLETE** when all conditions are met:
+1. `swarm_state.json.current_phase = "COMPLETE"` and `next_phase = "COMPLETE"`.
+2. All tasks from `tasks/queue/` have been moved to `tasks/completed/`.
+3. E2E tests pass on staging/production environment.
+4. No open items in `tasks/feedback/` for any completed task.
+5. No known bugs or unresolved TODOs documented for the project.
+6. README contains deployment instructions.
+7. Owner has accepted the final Analyst signoff.
+
+**Declaring completion without meeting all criteria is a P0 violation.**
 
 ## D.1 Phases (Canonical Order)
 1. `ARCHITECT`
