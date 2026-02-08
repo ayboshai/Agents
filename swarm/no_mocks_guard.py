@@ -40,6 +40,9 @@ PY_RULES: list[tuple[str, re.Pattern[str]]] = [
 ]
 
 
+ALLOWED_COMMENT_PATTERN = re.compile(r"TEST_DOUBLE_JUSTIFICATION:")
+
+
 def _iter_files(root: Path, dirs: Iterable[str]) -> Iterable[Path]:
     for d in dirs:
         base = root / d
@@ -63,10 +66,19 @@ def _scan_file(path: Path) -> list[Finding]:
         return findings
 
     rules = JS_RULES if path.suffix.lower() in {".ts", ".tsx", ".js", ".jsx"} else PY_RULES
-    for idx, line in enumerate(text.splitlines(), start=1):
+    lines = text.splitlines()
+    for idx, line in enumerate(lines, start=1):
         for rule_name, pat in rules:
             if pat.search(line):
-                findings.append(Finding(path=path, line_no=idx, line=line.rstrip("\n"), rule=rule_name))
+                # Check for justification on current or previous line
+                is_justified = False
+                if ALLOWED_COMMENT_PATTERN.search(line):
+                    is_justified = True
+                elif idx > 1 and ALLOWED_COMMENT_PATTERN.search(lines[idx - 2]):
+                    is_justified = True
+
+                if not is_justified:
+                    findings.append(Finding(path=path, line_no=idx, line=line.rstrip("\n"), rule=rule_name))
     return findings
 
 

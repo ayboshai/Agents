@@ -1,5 +1,5 @@
 {
-  "current_phase": "QA_CONTRACT",
+  "current_phase": "BACKEND",
   "enforcement_level": "L1",
   "history": [
     {
@@ -114,6 +114,16 @@
       "evidence": null,
       "note": "QA contract: governance invariants verified",
       "phase": "QA_CONTRACT"
+    },
+    {
+      "at": "2026-02-08T13:06:30Z",
+      "by_role": "backend",
+      "evidence": {
+        "path": "tasks/reports/TASK-BACKEND-GOV/BACKEND.md",
+        "sha256": "85efd24e52c4f21d581ba1f21c35f12c171df275e2edf155804f166a67a2150e"
+      },
+      "note": "Governance scripts updated (no_mocks justification support)",
+      "phase": "BACKEND"
     }
   ],
   "is_locked": false,
@@ -134,7 +144,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "BACKEND",
+  "next_phase": "ANALYST_CI_GATE",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
