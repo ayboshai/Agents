@@ -76,3 +76,24 @@ If the orchestrator can keep secrets out of the agent runtime, set:
 - `SWARM_LOG_HMAC_KEY` to chain-sign `tasks/logs/CI_LOGS.md` run blocks.
 
 Guards will verify signatures when the keys are present.
+
+---
+
+## Level 2 (GitHub Actions + Branch Protection)
+In L2 mode, GitHub Actions is the authoritative PASS/FAIL source.
+
+### PR Gate (Wait -> Approve -> Merge)
+If branch protection requires approvals + checks, the orchestrator can hard-lock merges using:
+```bash
+export GITHUB_TOKEN=...   # or GH_TOKEN
+export GITHUB_REPO=owner/repo
+
+python3 swarm/gh_pr_gate.py --pr <PR_NUMBER> --approve --merge
+```
+
+This will:
+1. Wait for required checks on the PR head SHA to be present and green.
+2. Approve the PR (once).
+3. Merge the PR (default: squash).
+
+If any required check fails, the script exits non-zero and prints the failing checks.
