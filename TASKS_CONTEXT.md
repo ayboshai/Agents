@@ -4,14 +4,13 @@
 Corporate marketing website for **AB-Company** (B2B automation services, 1C focus), implemented as a pixel-accurate clone of logisoft.ru information architecture and visual language with new content.
 
 ## Stack
-- **Framework:** Next.js 14+ (App Router)
-- **Language:** TypeScript (strict)
-- **Styling:** Tailwind CSS
-- **Icons:** Lucide React
+- **Framework:** Next.js (App Router)
+- **Language:** TypeScript (repo currently uses non-strict `tsconfig.json`)
+- **Styling:** CSS/vanilla styles (do not assume Tailwind unless it is explicitly added to `package.json` + configured)
 - **State:** React Hooks (local UI state only)
-- **Forms:** Native form + lightweight client validation
+- **Forms:** Native form + Zod validation (client + server)
 - **Testing:** Vitest + React Testing Library
-- **E2E/Smoke:** Playwright (optional CI smoke)
+- **E2E:** Playwright (mandatory in CI)
 - **Deployment target:** Vercel
 
 ## Architecture Style
@@ -21,7 +20,7 @@ Corporate marketing website for **AB-Company** (B2B automation services, 1C focu
   - `/cases/[slug]` detailed case pages
 
 ## Critical Constraints
-1. **No backend dependency for MVP:** contact form submits to stub/local handler or external integration placeholder.
+1. **No external backend dependency for MVP:** the contact form MUST submit to a real internal API route (`app/api/**`) and return real validation errors. No "fake success" handlers.
 2. **Pixel-oriented UI parity:** spacing, typography rhythm, section order and hierarchy aligned with logisoft.ru style baseline.
 3. **Content integrity:** all copy and contact data must match source-of-truth task text exactly.
 4. **Performance-first:** LCP-focused hero, optimized images, avoid heavy runtime libs.
