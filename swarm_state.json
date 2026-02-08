@@ -1,5 +1,5 @@
 {
-  "current_phase": "BACKEND",
+  "current_phase": "ANALYST_CI_GATE",
   "enforcement_level": "L1",
   "history": [
     {
@@ -93,6 +93,13 @@
       "evidence": null,
       "note": "BACKEND complete: no backend code changes required for this administrative cycle; proceed to Analyst CI gate",
       "phase": "BACKEND"
+    },
+    {
+      "at": "2026-02-08T08:18:43Z",
+      "by_role": "analyst",
+      "evidence": null,
+      "note": "ANALYST_CI_GATE escalation: governance/docs polish required (merge PR #14)",
+      "phase": "ANALYST_CI_GATE"
     }
   ],
   "is_locked": false,
@@ -113,7 +120,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "ANALYST_CI_GATE",
+  "next_phase": "ARCHITECT",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
