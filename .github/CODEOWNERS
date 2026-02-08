@@ -1,15 +1,17 @@
-# Replace the owners below with real GitHub users/teams for your org.
+# CODEOWNERS (CMAS-OS)
 # This file enables separation-of-concerns when Branch Protection requires CODEOWNERS reviews.
+#
+# NOTE: In a mature setup, these should be distinct GitHub teams/users per role.
+# For now we bind ownership to the repository owner account to make enforcement operational.
 
-/.github/ @REPLACE_ME_ARCHITECT
-/SWARM_CONSTITUTION.md @REPLACE_ME_ARCHITECT
-/SWARM_ARCHITECTURE.md @REPLACE_ME_ARCHITECT
-/swarm_state.json @REPLACE_ME_ARCHITECT
-/swarm/ @REPLACE_ME_ARCHITECT
-/config/personas/ @REPLACE_ME_ARCHITECT
+/.github/ @ayboshai
+/SWARM_CONSTITUTION.md @ayboshai
+/SWARM_ARCHITECTURE.md @ayboshai
+/swarm_state.json @ayboshai
+/swarm/ @ayboshai
+/config/personas/ @ayboshai
 
-/tests/ @REPLACE_ME_QA
+/tests/ @ayboshai
 
-/tasks/feedback/ @REPLACE_ME_ANALYST
-/tasks/reports/ @REPLACE_ME_ANALYST
-
+/tasks/feedback/ @ayboshai
+/tasks/reports/ @ayboshai
