@@ -367,13 +367,11 @@ def main(argv: Optional[list[str]] = None) -> int:
 
             if all_present and all_completed and not bad_lines:
                 # Green.
-                self_login = _get_self_login(token) if (args.approve or args.merge) else ""
                 did_approve = False
                 did_merge = False
 
-                if args.approve or args.merge:
-                    if not self_login:
-                        raise GhError("Internal error: self_login expected.")
+                if args.approve:
+                    self_login = _get_self_login(token)
                     if not _already_approved_by_self(token, repo, pr_number, self_login):
                         _approve_pr(
                             token,
@@ -453,4 +451,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
