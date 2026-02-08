@@ -1,5 +1,5 @@
 {
-  "current_phase": "ARCHITECT",
+  "current_phase": "ANALYST_CI_GATE",
   "enforcement_level": "L1",
   "history": [
     {
@@ -79,6 +79,27 @@
       "evidence": null,
       "note": "Complete ARCHITECT: L2-first CI gating integrated into Danny/OpenClaw",
       "phase": "ARCHITECT"
+    },
+    {
+      "at": "2026-02-08T08:13:58Z",
+      "by_role": "qa",
+      "evidence": null,
+      "note": "QA_CONTRACT complete: add contract tests for swarm/policy_guard behavior",
+      "phase": "QA_CONTRACT"
+    },
+    {
+      "at": "2026-02-08T08:16:37Z",
+      "by_role": "backend",
+      "evidence": null,
+      "note": "BACKEND complete: no backend code changes required for this administrative cycle; proceed to Analyst CI gate",
+      "phase": "BACKEND"
+    },
+    {
+      "at": "2026-02-08T08:18:43Z",
+      "by_role": "analyst",
+      "evidence": null,
+      "note": "ANALYST_CI_GATE escalation: governance/docs polish required (merge PR #14)",
+      "phase": "ANALYST_CI_GATE"
     }
   ],
   "is_locked": false,
@@ -99,7 +120,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "QA_CONTRACT",
+  "next_phase": "ARCHITECT",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
