@@ -55,6 +55,12 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "TASKS_CONTEXT.md",
         "README.md",
         ".gitignore",
+        "package.json",
+        "package-lock.json",
+        "tsconfig.json",
+        "vitest.config.ts",
+        "playwright.config.ts",
+        "next-env.d.ts",
         "swarm_state.json",
         "docs/**",
         "config/personas/**",
@@ -62,9 +68,19 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "githooks/**",
         "swarm/**",
         "requirements.txt",
+        # Project scaffolding (allowed only in ARCHITECT phase).
+        "app/**",
+        "components/**",
+        "data/**",
+        "lib/**",
+        "public/**",
         "src/**",
+        "tests/**",
         "workflows/**",
         "tasks/queue/**",
+        # Cleanup for project reset (do not touch tasks/logs/** or tasks/evidence/**).
+        "tasks/completed/**",
+        "tasks/feedback/**",
     ],
     # QA owns tests and test configuration.
     "qa": [

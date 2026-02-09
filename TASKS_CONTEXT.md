@@ -1,40 +1,23 @@
 # TASKS_CONTEXT
 
 ## Project Type
-Corporate marketing website for **AB-Company** (B2B automation services, 1C focus), implemented as a pixel-accurate clone of logisoft.ru information architecture and visual language with new content.
+Describe the product in 1-3 sentences.
 
 ## Stack
-- **Framework:** Next.js (App Router)
-- **Language:** TypeScript (repo currently uses non-strict `tsconfig.json`)
-- **Styling:** CSS/vanilla styles (do not assume Tailwind unless it is explicitly added to `package.json` + configured)
-- **State:** React Hooks (local UI state only)
-- **Forms:** Native form + Zod validation (client + server)
-- **Testing:** Vitest + React Testing Library
-- **E2E:** Playwright (mandatory in CI)
-- **Deployment target:** Vercel
-
-## Architecture Style
-- **Frontend-only monolith** (single Next.js application)
-- Route-level composition using App Router:
-  - `/` landing page with modular sections
-  - `/cases/[slug]` detailed case pages
+- Language:
+- Framework:
+- Storage:
+- Testing:
+- E2E:
 
 ## Critical Constraints
-1. **No external backend dependency for MVP:** the contact form MUST submit to a real internal API route (`app/api/**`) and return real validation errors. No "fake success" handlers.
-2. **Pixel-oriented UI parity:** spacing, typography rhythm, section order and hierarchy aligned with logisoft.ru style baseline.
-3. **Content integrity:** all copy and contact data must match source-of-truth task text exactly.
-4. **Performance-first:** LCP-focused hero, optimized images, avoid heavy runtime libs.
-5. **Accessibility baseline:** semantic headings, form labels, keyboard focus visibility, contrast-safe blue/white palette.
-6. **Responsive behavior:** desktop-first clone with robust tablet/mobile adaptation.
-7. **Deterministic rendering:** no random values, no time-dependent UI content.
-8. **Code boundaries:** business content centralized in typed data layer (`data/content.ts`), components remain presentational.
+1. **Mandatory E2E:** the `tests/e2e` suite MUST exist and run in CI.
+2. **No mocks for internal logic:** test real code paths; do not replace the system-under-test with mocks.
+3. **No stubs/placeholders:** production paths must be fully implemented.
+4. **Evidence-based gates:** PASS/FAIL comes from CI required checks (L2) or captured stdout/stderr (L1).
 
 ## Non-Functional Targets
-- Lighthouse (desktop): Performance >= 90, Accessibility >= 90, Best Practices >= 90.
-- Core Web Vitals-friendly defaults.
-- Maintainable component decomposition for swarm parallelism.
+- Reliability:
+- Security:
+- Performance:
 
-## Delivery Boundaries for Swarm
-- **Architect:** defines context, file tree, contracts/spec.
-- **QA:** writes failing tests first for brand/contacts/cases rendering.
-- **Frontend/Backend role:** in this project primarily frontend implementation in Next.js app.
