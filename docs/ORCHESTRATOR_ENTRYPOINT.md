@@ -43,6 +43,8 @@
 1. `git checkout main && git pull --ff-only`
 2. Читай `swarm_state.json.next_phase` уже после этого.
 
+Примечание: если Swarm запускается через skill `/swarm_os`, wrapper уже синхронизирует `main` **вне** `codex exec`. Внутри `codex exec` не выполняй network-операции (`git pull/fetch`, `gh`, `curl` к GitHub).
+
 ---
 
 ## 2. Железные законы
