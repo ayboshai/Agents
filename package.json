@@ -2,9 +2,9 @@
   "name": "agents",
   "private": true,
   "scripts": {
-    "dev": "next dev -p ${PORT:-3001}",
-    "build": "next build",
-    "start": "next start -p ${PORT:-3001}",
+    "dev": "node src/dev_server.js",
+    "build": "node -e \"console.log('CMAS-OS template: no build step configured')\"",
+    "start": "node src/dev_server.js",
     "test": "vitest run",
     "test:unit": "vitest run",
     "test:e2e": "playwright test"
