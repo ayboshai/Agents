@@ -241,6 +241,7 @@ The repository MUST contain these artifacts (paths are normative; exact names ma
 - `swarm_state.json` (state machine)
 - `config/personas/*.md` (static persona prompts; one per role)
 - `tasks/queue/` (task inputs)
+- `tasks/changes/` (Owner change requests; append-only request records)
 - `tasks/feedback/` (Analyst fix requests; immutable records)
 - `tasks/reports/<task_id>/` (phase reports; one per phase)
 - `docs/` (contracts/specs referenced by tasks)
@@ -473,6 +474,18 @@ Decision:
   - to `BACKEND` (API/validation/data issues)
 - If all invariants hold and evidence is present -> `E_FINAL_APPROVED`:
   - mark task as Approved in a non-forgeable way (see C.6).
+
+## D.4 Change Requests (CR) (Owner Scope Changes)
+A Change Request is an Owner-initiated scope change that arrives "out of phase".
+
+Rules:
+1. CR MUST be recorded as `tasks/changes/CR-XXX-*.md` (verbatim request + triage + status).
+2. CR MUST NOT bypass L2: all work still flows through PRs with required checks and merges to `main`.
+3. CR MUST NOT skip QA (especially `QA_E2E`) when UI or API behavior is affected.
+4. CR routing MUST be decided by Analyst and/or Architect:
+   - use `ANALYST_CI_GATE -> ARCHITECT` when contracts/architecture change,
+   - otherwise route to `BACKEND` or `FRONTEND` via Analyst gate.
+5. If a CR interrupts ongoing work, the transition note MUST include `CR-XXX PAUSE` and explicitly state that the phase work was paused (not completed).
 
 ---
 

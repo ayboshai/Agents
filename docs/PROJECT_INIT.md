@@ -63,9 +63,10 @@ cat > swarm_state.json << 'EOF'
 EOF
 
 # 6. Создать структуру tasks/
-mkdir -p tasks/{queue,completed,feedback,reports,evidence/test-runs,logs}
+mkdir -p tasks/{queue,completed,feedback,reports,changes,evidence/test-runs,logs}
 touch tasks/logs/CI_LOGS.md
 touch tasks/evidence/test-runs/.gitkeep
+touch tasks/changes/.gitkeep
 
 # 7. Первый коммит
 git add .
