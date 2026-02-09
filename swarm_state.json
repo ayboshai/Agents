@@ -1,5 +1,5 @@
 {
-  "current_phase": "QA_CONTRACT",
+  "current_phase": "BACKEND",
   "enforcement_level": "L1",
   "history": [
     {
@@ -114,6 +114,13 @@
       "evidence": null,
       "note": "QA contract: governance invariants verified",
       "phase": "QA_CONTRACT"
+    },
+    {
+      "at": "2026-02-09T12:50:17Z",
+      "by_role": "backend",
+      "evidence": null,
+      "note": "Owner reset: move to ANALYST_CI_GATE to return to ARCHITECT for new project",
+      "phase": "BACKEND"
     }
   ],
   "is_locked": false,
@@ -134,7 +141,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "BACKEND",
+  "next_phase": "ANALYST_CI_GATE",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
