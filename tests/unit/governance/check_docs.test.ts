@@ -58,4 +58,14 @@ describe('Governance Audit', () => {
     ];
     expect(state.required_phase_sequence).toEqual(expectedSequence);
   });
+
+  it('should include the Change Request protocol artifacts', () => {
+    const crDocPath = join(rootDir, 'docs', 'CHANGE_REQUEST.md');
+    expect(existsSync(crDocPath)).toBe(true);
+    const crDoc = readFileSync(crDocPath, 'utf-8');
+    expect(crDoc).toContain('Change Request Protocol (CR)');
+
+    const changesDir = join(rootDir, 'tasks', 'changes');
+    expect(existsSync(changesDir)).toBe(true);
+  });
 });
