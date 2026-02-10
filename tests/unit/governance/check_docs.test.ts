@@ -35,6 +35,14 @@ describe('Governance Audit', () => {
     expect(content).toContain('# TASKS_CONTEXT');
     expect(content).toContain('## Stack');
     expect(content).toContain('## Critical Constraints');
+    // Guardrail: the project context must not be left as a template placeholder.
+    expect(content).not.toContain('Describe the product in 1-3 sentences.');
+
+    // Stack keys must have non-empty values (avoid "Key:" with nothing after).
+    const requiredStackKeys = ['Language', 'Framework', 'Storage', 'Testing', 'E2E'];
+    requiredStackKeys.forEach((key) => {
+      expect(content).toMatch(new RegExp(`^\\s*-\\s*${key}:\\s*\\S+`, 'm'));
+    });
   });
 
   it('should have a valid swarm_state.json schema', () => {

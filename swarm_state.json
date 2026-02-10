@@ -1,5 +1,5 @@
 {
-  "current_phase": "ARCHITECT",
+  "current_phase": "QA_CONTRACT",
   "enforcement_level": "L1",
   "history": [
     {
@@ -135,6 +135,13 @@
       "evidence": null,
       "note": "Mini-cycle: ARCHITECT complete (context filled)",
       "phase": "ARCHITECT"
+    },
+    {
+      "at": "2026-02-10T05:04:01Z",
+      "by_role": "qa",
+      "evidence": null,
+      "note": "Mini-cycle: QA_CONTRACT complete (contract guardrails tightened)",
+      "phase": "QA_CONTRACT"
     }
   ],
   "is_locked": false,
@@ -155,7 +162,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "QA_CONTRACT",
+  "next_phase": "BACKEND",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
