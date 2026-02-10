@@ -1,5 +1,5 @@
 {
-  "current_phase": "BACKEND",
+  "current_phase": "ANALYST_CI_GATE",
   "enforcement_level": "L1",
   "history": [
     {
@@ -149,6 +149,13 @@
       "evidence": null,
       "note": "Mini-cycle: BACKEND complete (add /version endpoint)",
       "phase": "BACKEND"
+    },
+    {
+      "at": "2026-02-10T05:08:10Z",
+      "by_role": "analyst",
+      "evidence": null,
+      "note": "Mini-cycle: ANALYST_CI_GATE complete; reset to ARCHITECT for new project",
+      "phase": "ANALYST_CI_GATE"
     }
   ],
   "is_locked": false,
@@ -169,7 +176,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "ANALYST_CI_GATE",
+  "next_phase": "ARCHITECT",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
