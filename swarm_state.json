@@ -1,5 +1,5 @@
 {
-  "current_phase": "QA_CONTRACT",
+  "current_phase": "BACKEND",
   "enforcement_level": "L1",
   "history": [
     {
@@ -142,6 +142,13 @@
       "evidence": null,
       "note": "Mini-cycle: QA_CONTRACT complete (contract guardrails tightened)",
       "phase": "QA_CONTRACT"
+    },
+    {
+      "at": "2026-02-10T05:06:12Z",
+      "by_role": "backend",
+      "evidence": null,
+      "note": "Mini-cycle: BACKEND complete (add /version endpoint)",
+      "phase": "BACKEND"
     }
   ],
   "is_locked": false,
@@ -162,7 +169,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "BACKEND",
+  "next_phase": "ANALYST_CI_GATE",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",

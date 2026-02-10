@@ -5,6 +5,7 @@ const http = require('http');
 
 const HOST = '127.0.0.1';
 const PORT = Number(process.env.PORT || 3001);
+const PKG = require('../package.json');
 
 const INDEX_HTML = `<!doctype html>
 <html lang="en">
@@ -34,11 +35,21 @@ function respondHtml(res, statusCode, body) {
   res.end(body);
 }
 
+function respondJson(res, statusCode, value) {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.end(JSON.stringify(value));
+}
+
 const server = http.createServer((req, res) => {
   const url = (req.url || '').split('?', 1)[0];
 
   if (req.method === 'GET' && url === '/health') {
     return respondText(res, 200, 'OK');
+  }
+
+  if (req.method === 'GET' && url === '/version') {
+    return respondJson(res, 200, { name: PKG.name, version: PKG.version });
   }
 
   if (req.method === 'GET' && url === '/') {
@@ -58,4 +69,3 @@ function shutdown() {
 
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
-
