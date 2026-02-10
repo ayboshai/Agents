@@ -1,5 +1,5 @@
 {
-  "current_phase": "ANALYST_CI_GATE",
+  "current_phase": "ARCHITECT",
   "enforcement_level": "L1",
   "history": [
     {
@@ -128,6 +128,13 @@
       "evidence": null,
       "note": "Owner reset: return to ARCHITECT so a new project can start cleanly",
       "phase": "ANALYST_CI_GATE"
+    },
+    {
+      "at": "2026-02-10T05:01:20Z",
+      "by_role": "architect",
+      "evidence": null,
+      "note": "Mini-cycle: ARCHITECT complete (context filled)",
+      "phase": "ARCHITECT"
     }
   ],
   "is_locked": false,
@@ -148,7 +155,7 @@
     }
   },
   "migrated_at": "2026-02-07T15:53:02Z",
-  "next_phase": "ARCHITECT",
+  "next_phase": "QA_CONTRACT",
   "required_phase_sequence": [
     "ARCHITECT",
     "QA_CONTRACT",
