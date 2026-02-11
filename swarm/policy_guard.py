@@ -92,6 +92,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "playwright.config.ts",
         "package.json",
         "package-lock.json",
+        "scripts/test.sh",
         "TASKS_CONTEXT.md",
         "swarm_state.json",
         "tasks/reports/**",
@@ -173,6 +174,11 @@ def _load_json_from_git(ref: str, path: str) -> dict[str, Any]:
     return data
 
 
+def _state_changed(base: str, head: str, state_path: str) -> bool:
+    out = _run_git(["diff", "--name-only", f"{base}...{head}", "--", state_path])
+    return any(ln.strip() == state_path for ln in out.splitlines())
+
+
 def _changed_files_working_tree() -> list[str]:
     out = _run_git(["status", "--porcelain=v1"])
     files: list[str] = []
@@ -248,6 +254,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON output.")
     args = parser.parse_args(argv)
 
+    role_phase_source = "base.next_phase"
     if args.base:
         if not args.head:
             raise ValidationError("--head is required when --base is set.")
@@ -255,6 +262,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         mode = "diff"
         state = _load_json_from_git(args.base, args.state)
         state_ref = args.base
+        if _state_changed(args.base, args.head, args.state):
+            try:
+                head_state = _load_json_from_git(args.head, args.state)
+                head_current_raw = head_state.get("current_phase")
+                if isinstance(head_current_raw, str):
+                    head_current = _canonicalize_phase(head_current_raw)
+                    state = dict(state)
+                    state["next_phase"] = head_current
+                    role_phase_source = "head.current_phase"
+            except ValidationError:
+                pass
     else:
         changed = _changed_files_working_tree()
         mode = "working_tree"
@@ -301,6 +319,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             "ok": ok,
             "mode": mode,
             "state_ref": state_ref,
+            "role_phase_source": role_phase_source,
             "role": role,
             "actor": actor,
             "next_phase": next_phase,

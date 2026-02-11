@@ -61,6 +61,18 @@ DEFAULT_REQUIRED_PHASE_SEQUENCE: list[str] = [
     "ANALYST_FINAL",
 ]
 
+EXECUTION_LANES: set[str] = {"FULL", "FAST_UI"}
+
+LANE_REQUIRED_PHASE_SEQUENCE: dict[str, list[str]] = {
+    "FULL": list(DEFAULT_REQUIRED_PHASE_SEQUENCE),
+    "FAST_UI": [
+        "ARCHITECT",
+        "FRONTEND",
+        "QA_E2E",
+        "ANALYST_FINAL",
+    ],
+}
+
 ROLE_ALIASES: dict[str, str] = {
     "arch": "architect",
     "architect": "architect",
@@ -120,6 +132,17 @@ def _normalize_role(raw: str) -> str:
     if r in ROLE_ALIASES:
         return ROLE_ALIASES[r]
     raise ValidationError(f"Unknown role: {raw!r}. Expected one of: {sorted(set(ROLE_ALIASES.values()))}")
+
+
+def _normalize_lane(raw: Any) -> str:
+    if raw is None:
+        return "FULL"
+    if not isinstance(raw, str):
+        raise ValidationError(f"execution_lane must be a string when present, got: {type(raw).__name__}")
+    lane = raw.strip().upper()
+    if lane in EXECUTION_LANES:
+        return lane
+    raise ValidationError(f"Unknown execution_lane: {raw!r}. Allowed lanes: {sorted(EXECUTION_LANES)}")
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -223,20 +246,42 @@ def main(argv: Optional[list[str]] = None) -> int:
             errors.append(str(e))
             canonical_next = None
 
-    # Required phase sequence: allow per-task override.
+    try:
+        lane = _normalize_lane(state.get("execution_lane"))
+    except ValidationError as e:
+        errors.append(str(e))
+        lane = "FULL"
+    lane_default_seq = list(LANE_REQUIRED_PHASE_SEQUENCE.get(lane, DEFAULT_REQUIRED_PHASE_SEQUENCE))
+
+    # Required phase sequence is lane-bound by default.
     required_seq_raw = state.get("required_phase_sequence")
     if required_seq_raw is None:
-        required_seq = list(DEFAULT_REQUIRED_PHASE_SEQUENCE)
-        warnings.append("Missing 'required_phase_sequence'; using default 7-phase sequence.")
+        required_seq = list(lane_default_seq)
+        warnings.append(
+            "Missing 'required_phase_sequence'; using lane default sequence "
+            f"for execution_lane={lane!r}."
+        )
     elif isinstance(required_seq_raw, list) and all(isinstance(x, str) for x in required_seq_raw):
         try:
             required_seq = [_canonicalize_phase(x) for x in required_seq_raw]
         except ValidationError as e:
             errors.append(f"Invalid required_phase_sequence: {e}")
-            required_seq = list(DEFAULT_REQUIRED_PHASE_SEQUENCE)
+            required_seq = list(lane_default_seq)
+        else:
+            allow_custom = bool(state.get("allow_custom_sequence") is True)
+            if required_seq != lane_default_seq and not allow_custom:
+                errors.append(
+                    "required_phase_sequence must match execution_lane default unless "
+                    "allow_custom_sequence=true."
+                )
+            elif required_seq != lane_default_seq and allow_custom:
+                warnings.append(
+                    "Using custom required_phase_sequence with allow_custom_sequence=true. "
+                    "Ensure this is intentional."
+                )
     else:
         errors.append("'required_phase_sequence' must be an array of strings when present.")
-        required_seq = list(DEFAULT_REQUIRED_PHASE_SEQUENCE)
+        required_seq = list(lane_default_seq)
 
     history_phases_raw = list(_iter_history_phases(state.get("history")))
     canonical_timeline: list[str] = []
@@ -264,6 +309,20 @@ def main(argv: Optional[list[str]] = None) -> int:
         if missing:
             errors.append(
                 f"Phase skip detected: next_phase={canonical_next} but missing required phases: {missing}"
+            )
+
+    # Lane-specific phase constraints.
+    if lane == "FAST_UI":
+        disallowed = {"QA_CONTRACT", "BACKEND", "ANALYST_CI_GATE"}
+        if canonical_current in disallowed:
+            errors.append(
+                f"execution_lane=FAST_UI does not allow current_phase={canonical_current}. "
+                "Use execution_lane=FULL for backend/contract cycles."
+            )
+        if canonical_next in disallowed:
+            errors.append(
+                f"execution_lane=FAST_UI does not allow next_phase={canonical_next}. "
+                "Use execution_lane=FULL for backend/contract cycles."
             )
 
     # Role-to-next_phase validation.
@@ -310,6 +369,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             "canonical": {
                 "current_phase": canonical_current,
                 "next_phase": canonical_next,
+                "execution_lane": lane,
                 "required_phase_sequence": required_seq,
             },
         }
@@ -331,4 +391,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
