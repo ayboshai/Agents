@@ -4,6 +4,18 @@
 
 ---
 
+## 0. Executor Attestation (Anti "main model did the work")
+Swarm-запуск считается валидным только если в конце ответа есть маркеры wrapper:
+- `WRAPPER_MODE: READ_ONLY` или `WRAPPER_MODE: WRITE`
+- `L2_AUTOMATION: OK` (для write-run)
+
+Если маркеров нет:
+1. Считай запуск невалидным (не `codex_skill` path).
+2. **STOP**.
+3. Перезапусти именно skill-командой:
+   - `/swarm-os RUN: ...` (предпочтительно), или
+   - `Swarm OS: RUN: ...`
+
 ## 0. Новый проект vs новая задача
 
 Если пользователь сказал **"начинаем новый проект"**:
