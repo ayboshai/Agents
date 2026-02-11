@@ -78,6 +78,8 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "tests/**",
         "workflows/**",
         "tasks/queue/**",
+        # Phase report is mandatory in constitution for every phase.
+        "tasks/reports/**",
         # Cleanup for project reset (do not touch tasks/logs/** or tasks/evidence/**).
         "tasks/completed/**",
         "tasks/changes/**",
@@ -90,8 +92,10 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "playwright.config.ts",
         "package.json",
         "package-lock.json",
+        "scripts/test.sh",
         "TASKS_CONTEXT.md",
         "swarm_state.json",
+        "tasks/reports/**",
         "tasks/changes/**",
     ],
     # Backend owns server/business logic (project-specific; keep minimal exclusions).
@@ -105,6 +109,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "package-lock.json",
         "tsconfig.json",
         "swarm_state.json",
+        "tasks/reports/**",
         "tasks/changes/**",
     ],
     # Frontend owns UI code.
@@ -117,6 +122,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "package-lock.json",
         "tsconfig.json",
         "swarm_state.json",
+        "tasks/reports/**",
         "tasks/changes/**",
     ],
     # Analyst owns feedback/reports only (no code).
@@ -166,6 +172,11 @@ def _load_json_from_git(ref: str, path: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise ValidationError(f"{ref}:{path} must contain a JSON object, got: {type(data).__name__}")
     return data
+
+
+def _state_changed(base: str, head: str, state_path: str) -> bool:
+    out = _run_git(["diff", "--name-only", f"{base}...{head}", "--", state_path])
+    return any(ln.strip() == state_path for ln in out.splitlines())
 
 
 def _changed_files_working_tree() -> list[str]:
@@ -243,6 +254,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON output.")
     args = parser.parse_args(argv)
 
+    role_phase_source = "base.next_phase"
     if args.base:
         if not args.head:
             raise ValidationError("--head is required when --base is set.")
@@ -250,6 +262,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         mode = "diff"
         state = _load_json_from_git(args.base, args.state)
         state_ref = args.base
+        if _state_changed(args.base, args.head, args.state):
+            try:
+                head_state = _load_json_from_git(args.head, args.state)
+                head_current_raw = head_state.get("current_phase")
+                if isinstance(head_current_raw, str):
+                    head_current = _canonicalize_phase(head_current_raw)
+                    state = dict(state)
+                    state["next_phase"] = head_current
+                    role_phase_source = "head.current_phase"
+            except ValidationError:
+                pass
     else:
         changed = _changed_files_working_tree()
         mode = "working_tree"
@@ -296,6 +319,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             "ok": ok,
             "mode": mode,
             "state_ref": state_ref,
+            "role_phase_source": role_phase_source,
             "role": role,
             "actor": actor,
             "next_phase": next_phase,

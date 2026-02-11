@@ -14,11 +14,25 @@ try:
     # Support both:
     # - `python3 swarm/state_diff_guard.py`
     # - `python3 -m swarm.state_diff_guard`
-    from .transition_state import ALLOWED_TRANSITIONS
-    from .validate_state import PHASE_TO_ROLE, ValidationError, _canonicalize_phase
+    from .transition_state import ALLOWED_TRANSITIONS_BY_LANE, FULL_ALLOWED_TRANSITIONS
+    from .validate_state import (
+        DEFAULT_REQUIRED_PHASE_SEQUENCE,
+        LANE_REQUIRED_PHASE_SEQUENCE,
+        PHASE_TO_ROLE,
+        ValidationError,
+        _canonicalize_phase,
+        _normalize_lane,
+    )
 except ImportError:  # pragma: no cover
-    from transition_state import ALLOWED_TRANSITIONS  # type: ignore
-    from validate_state import PHASE_TO_ROLE, ValidationError, _canonicalize_phase  # type: ignore
+    from transition_state import ALLOWED_TRANSITIONS_BY_LANE, FULL_ALLOWED_TRANSITIONS  # type: ignore
+    from validate_state import (  # type: ignore
+        DEFAULT_REQUIRED_PHASE_SEQUENCE,
+        LANE_REQUIRED_PHASE_SEQUENCE,
+        PHASE_TO_ROLE,
+        ValidationError,
+        _canonicalize_phase,
+        _normalize_lane,
+    )
 
 
 @dataclass(frozen=True)
@@ -35,6 +49,14 @@ def _run_git(args: list[str]) -> str:
     if res.returncode != 0:
         raise ValidationError(f"git {' '.join(args)} failed: {res.stderr.strip()}")
     return res.stdout
+
+
+def _git_file_exists(ref: str, path: str) -> bool:
+    # Used in CI diff mode. Allows bootstrapping a repo where swarm_state.json does not exist in base yet.
+    if Path(path).is_absolute():
+        return False
+    res = subprocess.run(["git", "cat-file", "-e", f"{ref}:{path}"], check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    return res.returncode == 0
 
 
 def _load_json_from_git(ref: str, path: str) -> dict[str, Any]:
@@ -75,8 +97,81 @@ def _validate_state_transition(
     if not _state_changed(base_ref, head_ref, state_path):
         return DiffResult(ok=True, changed=False, errors=[], base_ref=base_ref, head_ref=head_ref)
 
+    if not _git_file_exists(base_ref, state_path):
+        # Bootstrap PR: introduce swarm_state.json into a legacy repo.
+        head_state = _load_json_from_git(head_ref, state_path)
+
+        cur_raw = head_state.get("current_phase")
+        nxt_raw = head_state.get("next_phase")
+        hist = head_state.get("history")
+
+        if not isinstance(cur_raw, str):
+            errors.append("Bootstrap swarm_state.json.current_phase must be a string (INIT).")
+            cur = None
+        else:
+            try:
+                cur = _canonicalize_phase(cur_raw)
+            except ValidationError as e:
+                errors.append(f"Bootstrap current_phase invalid: {e}")
+                cur = None
+        if cur is not None and cur != "INIT":
+            errors.append("Bootstrap swarm_state.json.current_phase must be INIT.")
+
+        if not isinstance(nxt_raw, str):
+            errors.append("Bootstrap swarm_state.json.next_phase must be a string (ARCHITECT).")
+            nxt = None
+        else:
+            try:
+                nxt = _canonicalize_phase(nxt_raw)
+            except ValidationError as e:
+                errors.append(f"Bootstrap next_phase invalid: {e}")
+                nxt = None
+        if nxt is not None and nxt != "ARCHITECT":
+            errors.append("Bootstrap swarm_state.json.next_phase must be ARCHITECT (do not skip phases).")
+
+        req = head_state.get("required_phase_sequence")
+        if not isinstance(req, list) or not all(isinstance(x, str) for x in req):
+            errors.append("Bootstrap swarm_state.json.required_phase_sequence must be an array of strings.")
+        else:
+            try:
+                canonical_req = [_canonicalize_phase(x) for x in req]
+            except ValidationError as e:
+                errors.append(f"Bootstrap required_phase_sequence invalid: {e}")
+            else:
+                if canonical_req != list(DEFAULT_REQUIRED_PHASE_SEQUENCE):
+                    errors.append("Bootstrap required_phase_sequence must equal the default 7-phase sequence.")
+
+        lane_raw = head_state.get("execution_lane")
+        if lane_raw is not None:
+            try:
+                lane = _normalize_lane(lane_raw)
+            except ValidationError as e:
+                errors.append(f"Bootstrap execution_lane invalid: {e}")
+            else:
+                if lane != "FULL":
+                    errors.append("Bootstrap execution_lane must be FULL (switch to FAST_UI only via ARCHITECT PR).")
+
+        if head_state.get("is_locked") is not False:
+            errors.append("Bootstrap swarm_state.json.is_locked must be false.")
+
+        if not isinstance(hist, list) or len(hist) != 0:
+            errors.append("Bootstrap swarm_state.json.history must be an empty array.")
+
+        ok = not errors
+        return DiffResult(ok=ok, changed=True, errors=errors, base_ref=base_ref, head_ref=head_ref)
+
     base_state = _load_json_from_git(base_ref, state_path)
     head_state = _load_json_from_git(head_ref, state_path)
+    try:
+        base_lane = _normalize_lane(base_state.get("execution_lane"))
+    except ValidationError as e:
+        errors.append(f"Base execution_lane invalid: {e}")
+        base_lane = "FULL"
+    try:
+        head_lane = _normalize_lane(head_state.get("execution_lane"))
+    except ValidationError as e:
+        errors.append(f"Head execution_lane invalid: {e}")
+        head_lane = base_lane
 
     base_next_raw = base_state.get("next_phase")
     head_current_raw = head_state.get("current_phase")
@@ -117,15 +212,46 @@ def _validate_state_transition(
             f"Invalid transition semantics: head.current_phase={head_current} must equal base.next_phase={base_next}."
         )
 
-    if base_next and head_next and (base_next, head_next) not in ALLOWED_TRANSITIONS:
-        allowed = sorted([b for (a, b) in ALLOWED_TRANSITIONS if a == base_next])
+    # Lane switch is allowed only when base.next_phase is ARCHITECT.
+    if base_lane != head_lane and base_next != "ARCHITECT":
         errors.append(
-            f"Illegal transition: {base_next} -> {head_next}. Allowed next phases: {allowed}"
+            f"execution_lane change {base_lane}->{head_lane} is only allowed when base.next_phase is ARCHITECT."
         )
 
-    # Required sequence must remain stable: changing it weakens enforcement.
-    if base_state.get("required_phase_sequence") != head_state.get("required_phase_sequence"):
-        errors.append("required_phase_sequence must not change in a PR (protected invariant).")
+    transition_lane = head_lane if (base_lane != head_lane and base_next == "ARCHITECT") else base_lane
+    lane_transitions = ALLOWED_TRANSITIONS_BY_LANE.get(transition_lane, FULL_ALLOWED_TRANSITIONS)
+
+    if base_next and head_next and (base_next, head_next) not in lane_transitions:
+        allowed = sorted([b for (a, b) in lane_transitions if a == base_next])
+        errors.append(
+            f"Illegal transition for lane={transition_lane}: {base_next} -> {head_next}. Allowed next phases: {allowed}"
+        )
+
+    # required_phase_sequence must stay stable unless we intentionally switch lane on ARCHITECT.
+    base_req_raw = base_state.get("required_phase_sequence")
+    head_req_raw = head_state.get("required_phase_sequence")
+    if not (isinstance(base_req_raw, list) and all(isinstance(x, str) for x in base_req_raw)):
+        errors.append("Base required_phase_sequence must be an array of strings.")
+        base_req = list(DEFAULT_REQUIRED_PHASE_SEQUENCE)
+    else:
+        base_req = [_canonicalize_phase(x) for x in base_req_raw]
+    if not (isinstance(head_req_raw, list) and all(isinstance(x, str) for x in head_req_raw)):
+        errors.append("Head required_phase_sequence must be an array of strings.")
+        head_req = list(DEFAULT_REQUIRED_PHASE_SEQUENCE)
+    else:
+        head_req = [_canonicalize_phase(x) for x in head_req_raw]
+
+    if base_lane == head_lane:
+        if base_req != head_req:
+            errors.append("required_phase_sequence must not change when execution_lane is unchanged.")
+    else:
+        if base_next != "ARCHITECT":
+            errors.append("required_phase_sequence cannot change outside ARCHITECT lane switch.")
+        expected_head_req = list(LANE_REQUIRED_PHASE_SEQUENCE.get(head_lane, DEFAULT_REQUIRED_PHASE_SEQUENCE))
+        if head_req != expected_head_req:
+            errors.append(
+                "required_phase_sequence must match target lane default when execution_lane changes."
+            )
 
     # Lock status must not be silently toggled in a PR.
     if base_state.get("is_locked") != head_state.get("is_locked"):
@@ -249,4 +375,3 @@ def main(argv: Optional[list[str]] = None) -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

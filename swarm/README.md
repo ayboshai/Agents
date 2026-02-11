@@ -61,6 +61,16 @@ python3 swarm/transition_state.py \
   --note "short reason"
 ```
 
+### 5.1) Switch Execution Lane (Only Supported Lane Writer)
+```bash
+python3 swarm/set_execution_lane.py \
+  --lane <FULL|FAST_UI> \
+  --reason "why lane is changing"
+```
+Notes:
+- lane switch is allowed only at architecture boundary unless `--force` is used for recovery.
+- script updates `execution_lane` + `required_phase_sequence` atomically.
+
 ### 6) Analyst Feedback Artifact
 ```bash
 python3 swarm/create_feedback.py \

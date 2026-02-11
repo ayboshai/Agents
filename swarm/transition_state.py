@@ -23,28 +23,31 @@ try:
     # - `python3 -m swarm.transition_state`
     from .validate_state import (
         DEFAULT_REQUIRED_PHASE_SEQUENCE,
+        LANE_REQUIRED_PHASE_SEQUENCE,
         PHASE_TO_ROLE,
         ValidationError,
         _canonicalize_phase,
         _compute_state_hmac,
         _iter_history_phases,
+        _normalize_lane,
         _normalize_role,
     )
 except ImportError:  # pragma: no cover
     from validate_state import (  # type: ignore
         DEFAULT_REQUIRED_PHASE_SEQUENCE,
+        LANE_REQUIRED_PHASE_SEQUENCE,
         PHASE_TO_ROLE,
         ValidationError,
         _canonicalize_phase,
         _compute_state_hmac,
         _iter_history_phases,
+        _normalize_lane,
         _normalize_role,
     )
 
 
 # Allowed transitions define the non-skippable state machine.
-# The set is intentionally small; add transitions only with explicit necessity.
-ALLOWED_TRANSITIONS: set[tuple[str, str]] = {
+FULL_ALLOWED_TRANSITIONS: set[tuple[str, str]] = {
     ("INIT", "ARCHITECT"),
     ("ARCHITECT", "QA_CONTRACT"),
     ("QA_CONTRACT", "BACKEND"),
@@ -62,6 +65,26 @@ ALLOWED_TRANSITIONS: set[tuple[str, str]] = {
     ("ANALYST_FINAL", "ARCHITECT"),
 }
 
+FAST_UI_ALLOWED_TRANSITIONS: set[tuple[str, str]] = {
+    ("INIT", "ARCHITECT"),
+    ("ARCHITECT", "FRONTEND"),
+    ("FRONTEND", "QA_E2E"),
+    ("FRONTEND", "ARCHITECT"),  # escalation to planning if UI scope changed
+    ("QA_E2E", "ANALYST_FINAL"),
+    ("QA_E2E", "FRONTEND"),  # auto-rollback loop for UI regressions
+    ("ANALYST_FINAL", "COMPLETE"),
+    ("ANALYST_FINAL", "FRONTEND"),
+    ("ANALYST_FINAL", "ARCHITECT"),
+}
+
+ALLOWED_TRANSITIONS_BY_LANE: dict[str, set[tuple[str, str]]] = {
+    "FULL": FULL_ALLOWED_TRANSITIONS,
+    "FAST_UI": FAST_UI_ALLOWED_TRANSITIONS,
+}
+
+# Backward-compatible export used by state_diff_guard.
+ALLOWED_TRANSITIONS: set[tuple[str, str]] = set().union(*ALLOWED_TRANSITIONS_BY_LANE.values())
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -75,13 +98,20 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
-def _ensure_required_sequence(state: dict[str, Any]) -> list[str]:
+def _ensure_required_sequence(state: dict[str, Any], *, lane: str) -> list[str]:
+    lane_default = list(LANE_REQUIRED_PHASE_SEQUENCE.get(lane, DEFAULT_REQUIRED_PHASE_SEQUENCE))
     raw = state.get("required_phase_sequence")
     if isinstance(raw, list) and all(isinstance(x, str) for x in raw):
-        return [_canonicalize_phase(x) for x in raw]
+        seq = [_canonicalize_phase(x) for x in raw]
+        allow_custom = bool(state.get("allow_custom_sequence") is True)
+        if seq != lane_default and not allow_custom:
+            raise ValidationError(
+                "required_phase_sequence must match execution_lane default unless allow_custom_sequence=true."
+            )
+        return seq
     # Default to the standard sequence if missing/malformed.
-    state["required_phase_sequence"] = list(DEFAULT_REQUIRED_PHASE_SEQUENCE)
-    return list(DEFAULT_REQUIRED_PHASE_SEQUENCE)
+    state["required_phase_sequence"] = list(lane_default)
+    return list(lane_default)
 
 
 def _load_json_from_text(path: Path, text: str) -> dict[str, Any]:
@@ -130,6 +160,8 @@ def main(argv: Optional[list[str]] = None) -> int:
 
             executing_phase = _canonicalize_phase(raw_next)  # the phase we are completing now
             next_phase = _canonicalize_phase(args.to)
+            lane = _normalize_lane(state.get("execution_lane"))
+            state["execution_lane"] = lane
 
             if state.get("is_locked") is True:
                 raise ValidationError("State is locked (is_locked=true). Cannot transition.")
@@ -143,13 +175,15 @@ def main(argv: Optional[list[str]] = None) -> int:
                     f"Expected role: {expected_role!r}."
                 )
 
-            if (executing_phase, next_phase) not in ALLOWED_TRANSITIONS:
-                allowed = sorted([b for (a, b) in ALLOWED_TRANSITIONS if a == executing_phase])
+            lane_allowed = ALLOWED_TRANSITIONS_BY_LANE.get(lane, FULL_ALLOWED_TRANSITIONS)
+            if (executing_phase, next_phase) not in lane_allowed:
+                allowed = sorted([b for (a, b) in lane_allowed if a == executing_phase])
                 raise ValidationError(
-                    f"Illegal transition: {executing_phase} -> {next_phase}. Allowed next phases: {allowed}"
+                    f"Illegal transition for execution_lane={lane}: {executing_phase} -> {next_phase}. "
+                    f"Allowed next phases: {allowed}"
                 )
 
-            required_seq = _ensure_required_sequence(state)
+            required_seq = _ensure_required_sequence(state, lane=lane)
 
             # Enforce "no skipping" via next_phase. Allow fix loops backwards.
             if next_phase in required_seq:
@@ -183,11 +217,13 @@ def main(argv: Optional[list[str]] = None) -> int:
                     "phase": executing_phase,
                     "at": _utc_now_iso(),
                     "by_role": role,
+                    "lane": lane,
                     "note": args.note,
                     "evidence": evidence_obj,
                 }
             )
             state["history"] = history_list
+            state["last_updated"] = _utc_now_iso()
 
             # Optional tamper-evidence HMAC.
             hmac_key = os.environ.get("SWARM_STATE_HMAC_KEY")

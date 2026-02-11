@@ -1,5 +1,6 @@
 {
   "current_phase": "ANALYST_CI_GATE",
+  "execution_lane": "FULL",
   "enforcement_level": "L1",
   "history": [
     {

@@ -1,8 +1,24 @@
 # CMAS-OS Orchestrator Entrypoint
 
 > **Цель:** Отправляй этот текст ассистенту при смене контекста.
+>  
+> Master spec: `docs/SWARM_MASTER_SPEC.md`
 
 ---
+
+## 0. Executor Attestation (Anti "main model did the work")
+Swarm-запуск считается валидным только если в конце ответа есть маркеры wrapper:
+- `EXECUTOR: codex-cli (codex exec)`
+- `EXECUTOR_VERSION: ...`
+- `WRAPPER_MODE: READ_ONLY` или `WRAPPER_MODE: WRITE`
+- `L2_AUTOMATION: OK` (для write-run)
+
+Если маркеров нет:
+1. Считай запуск невалидным (не `codex_skill` path).
+2. **STOP**.
+3. Перезапусти именно skill-командой:
+   - `/swarm-os RUN: ...` (предпочтительно), или
+   - `Swarm OS: RUN: ...`
 
 ## 0. Новый проект vs новая задача
 
@@ -14,6 +30,13 @@
 
 Если пользователь сказал **"новая задача"** (внутри текущего проекта):
 - Проект НЕ меняется. Работаем строго по `swarm_state.json` в активном репо.
+
+## 0.1 Lane (FULL / FAST_UI)
+- Lane берется из `swarm_state.json.execution_lane`.
+- Можно явно указать в команде:
+  - `LANE: FULL`
+  - `LANE: FAST_UI` (косметические UI-изменения)
+- Переключение lane делает только кодовый writer: `swarm/set_execution_lane.py`.
 
 Если пользователь сказал **"CHANGE REQUEST: ..."** (изменения ВНЕ текущей фазы):
 - **Прочитай отдельный протокол:** `docs/CHANGE_REQUEST.md`
