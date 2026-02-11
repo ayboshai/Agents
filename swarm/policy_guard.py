@@ -78,6 +78,8 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "tests/**",
         "workflows/**",
         "tasks/queue/**",
+        # Phase report is mandatory in constitution for every phase.
+        "tasks/reports/**",
         # Cleanup for project reset (do not touch tasks/logs/** or tasks/evidence/**).
         "tasks/completed/**",
         "tasks/changes/**",
@@ -92,6 +94,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "package-lock.json",
         "TASKS_CONTEXT.md",
         "swarm_state.json",
+        "tasks/reports/**",
         "tasks/changes/**",
     ],
     # Backend owns server/business logic (project-specific; keep minimal exclusions).
@@ -105,6 +108,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "package-lock.json",
         "tsconfig.json",
         "swarm_state.json",
+        "tasks/reports/**",
         "tasks/changes/**",
     ],
     # Frontend owns UI code.
@@ -117,6 +121,7 @@ ROLE_ALLOW_GLOBS_AGENT: dict[str, list[str]] = {
         "package-lock.json",
         "tsconfig.json",
         "swarm_state.json",
+        "tasks/reports/**",
         "tasks/changes/**",
     ],
     # Analyst owns feedback/reports only (no code).
