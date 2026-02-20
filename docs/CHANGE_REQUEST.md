@@ -68,6 +68,10 @@ CHANGE REQUEST: <описание изменения>
      --to ANALYST_CI_GATE \
      --note "CR-XXX PAUSE: <short reason>. Phase work paused (not completed)."
    ```
+   Пример:
+   ```bash
+   python3 swarm/transition_state.py --role FRONTEND --to ANALYST_CI_GATE --note "CR-001 PAUSE: adding /pricing. Phase work paused."
+   ```
 2. Merge PR только через `gh_pr_gate.py` (required checks must be green).
 
 Важно: это **pause/interrupt**. Мы специально фиксируем в `note`, что фаза не завершена.
@@ -86,6 +90,7 @@ CHANGE REQUEST: <описание изменения>
 Для каждой затронутой роли:
 - роль делает PR → CI зелёный → merge;
 - при FAIL запускается Fix Loop (та же роль чинит);
+- **если 5 итераций без зелёного CI:** STOP и эскалируй Owner'у;
 - после Dev-ролей обязательно Analyst gate;
 - **если были изменения UI или API:** `QA_E2E` MUST быть выполнен и смёржен.
 
